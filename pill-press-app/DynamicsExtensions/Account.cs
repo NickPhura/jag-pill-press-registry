@@ -1,23 +1,24 @@
-﻿
-using Gov.Jag.PillPressRegistry.Interfaces.Models;
-using Gov.Jag.PillPressRegistry.Public.Utils;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Gov.Jag.PillPressRegistry.Interfaces.Models;
+using Gov.Jag.PillPressRegistry.Public.Utils;
 
 namespace Gov.Jag.PillPressRegistry.Interfaces
 {
     public static class AccountDynamicsExtensions
     {
-
         /// <summary>
         /// Get a Account by their Guid
         /// </summary>
         /// <param name="system"></param>
         /// <param name="id"></param>
         /// <returns></returns>
-        public static async Task<MicrosoftDynamicsCRMaccount> GetAccountBySiteminderBusinessGuid(this IDynamicsClient system, string siteminderId)
+        public static async Task<MicrosoftDynamicsCRMaccount> GetAccountBySiteminderBusinessGuid(
+            this IDynamicsClient system,
+            string siteminderId
+        )
         {
             // ensure that the siteminderId does not have any dashes.
             string sanitizedSiteminderId = GuidUtility.SanitizeGuidString(siteminderId);
@@ -25,51 +26,65 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             MicrosoftDynamicsCRMaccount result = null;
             try
             {
-                var accountResponse = await system.Accounts.GetAsync(filter: "bcgov_bceid eq '" + sanitizedSiteminderId + "'");
+                var accountResponse = await system.Accounts.GetAsync(
+                    filter: "bcgov_bceid eq '" + sanitizedSiteminderId + "'"
+                );
                 result = accountResponse.Value.FirstOrDefault();
             }
             catch (Exception)
             {
-
                 result = null;
             }
 
             // get the primary contact.
-            if (result != null && result.Primarycontactid == null && result._primarycontactidValue != null)
+            if (
+                result != null
+                && result.Primarycontactid == null
+                && result._primarycontactidValue != null
+            )
             {
-                result.Primarycontactid = system.GetContactById(Guid.Parse(result._primarycontactidValue));
+                result.Primarycontactid = system.GetContactById(
+                    Guid.Parse(result._primarycontactidValue)
+                );
             }
 
             return result;
-
         }
 
-        public static async Task<MicrosoftDynamicsCRMaccount> GetAccountByLegalName(this IDynamicsClient system, string legalName)
+        public static async Task<MicrosoftDynamicsCRMaccount> GetAccountByLegalName(
+            this IDynamicsClient system,
+            string legalName
+        )
         {
             legalName = legalName.Replace("'", "''");
 
             MicrosoftDynamicsCRMaccount result = null;
             try
             {
-                var accountResponse = await system.Accounts.GetAsync(filter: $"name eq '{legalName}'");
+                var accountResponse = await system.Accounts.GetAsync(
+                    filter: $"name eq '{legalName}'"
+                );
                 result = accountResponse.Value.FirstOrDefault();
             }
             catch (Exception)
             {
-
                 result = null;
             }
 
             // get the primary contact.
-            if (result != null && result.Primarycontactid == null && result._primarycontactidValue != null)
+            if (
+                result != null
+                && result.Primarycontactid == null
+                && result._primarycontactidValue != null
+            )
             {
-                result.Primarycontactid = system.GetContactById(Guid.Parse(result._primarycontactidValue));
+                result.Primarycontactid = system.GetContactById(
+                    Guid.Parse(result._primarycontactidValue)
+                );
             }
 
             return result;
-
         }
-
 
         /// <summary>
         /// Get a Account by their Guid
@@ -77,7 +92,10 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
         /// <param name="system"></param>
         /// <param name="id"></param>
         /// <returns></returns>
-        public static MicrosoftDynamicsCRMaccount GetAccountByIdWithChildren(this IDynamicsClient system, Guid id)
+        public static MicrosoftDynamicsCRMaccount GetAccountByIdWithChildren(
+            this IDynamicsClient system,
+            Guid id
+        )
         {
             List<string> expand = new List<string>()
             {
@@ -98,16 +116,22 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             }
             catch (Exception e)
             {
-                var ex =  e;
+                var ex = e;
                 result = null;
             }
 
             // get the primary contact.
-            if (result != null && result.Primarycontactid == null && result._primarycontactidValue != null)
+            if (
+                result != null
+                && result.Primarycontactid == null
+                && result._primarycontactidValue != null
+            )
             {
                 try
                 {
-                    result.Primarycontactid = system.GetContactById(Guid.Parse(result._primarycontactidValue));
+                    result.Primarycontactid = system.GetContactById(
+                        Guid.Parse(result._primarycontactidValue)
+                    );
                 }
                 catch (OdataerrorException)
                 {
@@ -121,11 +145,17 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             return result;
         }
 
-        public static string GetServerUrl(this MicrosoftDynamicsCRMaccount account, SharePointFileManager _sharePointFileManager)
+        public static string GetServerUrl(
+            this MicrosoftDynamicsCRMaccount account,
+            ISharePointFileManager _sharePointFileManager
+        )
         {
             string result = "";
             // use the account document location if it exists.
-            if (account.AccountSharepointDocumentLocation != null && account.AccountSharepointDocumentLocation.Count > 0)
+            if (
+                account.AccountSharepointDocumentLocation != null
+                && account.AccountSharepointDocumentLocation.Count > 0
+            )
             {
                 var location = account.AccountSharepointDocumentLocation.FirstOrDefault();
                 if (location != null)
@@ -146,13 +176,18 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
                             serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName;
                         }
 
-                        serverRelativeUrl += "/" + _sharePointFileManager.GetServerRelativeURL(SharePointFileManager.AccountDocumentListTitle, location.Relativeurl);
+                        serverRelativeUrl +=
+                            "/"
+                            + _sharePointFileManager.GetServerRelativeURL(
+                                SharePointConstants.AccountFolderDisplayName,
+                                location.Relativeurl
+                            );
 
                         result = serverRelativeUrl;
                     }
-                }                
+                }
             }
-            if(string.IsNullOrEmpty(result))
+            if (string.IsNullOrEmpty(result))
             {
                 string serverRelativeUrl = "";
 
@@ -163,13 +198,16 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
                 string accountIdCleaned = account.Accountid.ToString().ToUpper().Replace("-", "");
                 string folderName = $"_{accountIdCleaned}";
 
-                serverRelativeUrl += "/" + _sharePointFileManager.GetServerRelativeURL(SharePointFileManager.AccountDocumentListTitle, folderName);
+                serverRelativeUrl +=
+                    "/"
+                    + _sharePointFileManager.GetServerRelativeURL(
+                        SharePointConstants.AccountFolderDisplayName,
+                        folderName
+                    );
 
                 result = serverRelativeUrl;
-                
             }
             return result;
         }
-
     }
 }

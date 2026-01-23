@@ -172,11 +172,12 @@ namespace Gov.Jag.PillPressRegistry.Public
                 return client;
             });
 
-            // add SharePoint.
-
+            // Add SharePoint
             if (!string.IsNullOrEmpty(Configuration["SHAREPOINT_ODATA_URI"]))
             {
-                services.AddTransient<SharePointFileManager>(_ => new SharePointFileManager(Configuration));
+                services.AddTransient<ISharePointFileManager>(sp =>
+                    SharePointFileManager.Create(Configuration, sp.GetService<ILoggerFactory>())
+                );
             }
 
             // add BCeID Web Services

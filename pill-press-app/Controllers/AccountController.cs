@@ -1,4 +1,10 @@
-﻿using Gov.Jag.PillPressRegistry.Interfaces;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Threading.Tasks;
+using Gov.Jag.PillPressRegistry.Interfaces;
 using Gov.Jag.PillPressRegistry.Interfaces.Models;
 using Gov.Jag.PillPressRegistry.Public.Authentication;
 using Gov.Jag.PillPressRegistry.Public.Models;
@@ -11,12 +17,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Reflection;
-using System.Threading.Tasks;
 
 namespace Gov.Jag.PillPressRegistry.Public.Controllers
 {
@@ -27,11 +27,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         private readonly BCeIDBusinessQuery _bceid;
         private readonly IConfiguration Configuration;
         private readonly IDynamicsClient _dynamicsClient;
-        private readonly SharePointFileManager _sharePointFileManager;
+        private readonly ISharePointFileManager _sharePointFileManager;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger _logger;
 
-        public AccountController(SharePointFileManager sharePointFileManager, IConfiguration configuration, IHttpContextAccessor httpContextAccessor, BCeIDBusinessQuery bceid, ILoggerFactory loggerFactory, IDynamicsClient dynamicsClient)
+        public AccountController(
+            ISharePointFileManager sharePointFileManager,
+            IConfiguration configuration,
+            IHttpContextAccessor httpContextAccessor,
+            BCeIDBusinessQuery bceid,
+            ILoggerFactory loggerFactory,
+            IDynamicsClient dynamicsClient
+        )
         {
             Configuration = configuration;
             _bceid = bceid;
@@ -46,24 +53,42 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpGet("current")]
         public async Task<IActionResult> GetCurrentAccount()
         {
-            _logger.LogInformation(LoggingEvents.HttpGet, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpGet,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
             ViewModels.Account result = null;
 
             // get the current user.
-            string sessionSettings = _httpContextAccessor.HttpContext.Session.GetString("UserSettings");
-            UserSettings userSettings = JsonConvert.DeserializeObject<UserSettings>(sessionSettings);
-            _logger.LogDebug(LoggingEvents.HttpGet, "UserSettings: " + JsonConvert.SerializeObject(userSettings));
+            string sessionSettings = _httpContextAccessor.HttpContext.Session.GetString(
+                "UserSettings"
+            );
+            UserSettings userSettings = JsonConvert.DeserializeObject<UserSettings>(
+                sessionSettings
+            );
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "UserSettings: " + JsonConvert.SerializeObject(userSettings)
+            );
 
             // query the Dynamics system to get the account record.
             if (userSettings.AccountId != null && userSettings.AccountId.Length > 0)
             {
                 var accountId = GuidUtility.SanitizeGuidString(userSettings.AccountId);
-                MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(new Guid(accountId));
-                _logger.LogDebug(LoggingEvents.HttpGet, "Dynamics Account: " + JsonConvert.SerializeObject(account));
+                MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(
+                    new Guid(accountId)
+                );
+                _logger.LogDebug(
+                    LoggingEvents.HttpGet,
+                    "Dynamics Account: " + JsonConvert.SerializeObject(account)
+                );
 
                 if (account == null)
                 {
-                    // Sometimes we receive the siteminderbusinessguid instead of the account id. 
+                    // Sometimes we receive the siteminderbusinessguid instead of the account id.
                     account = await _dynamicsClient.GetAccountBySiteminderBusinessGuid(accountId);
                     if (account == null)
                     {
@@ -79,8 +104,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 return new NotFoundResult();
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "Current Account Result: " +
-               JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "Current Account Result: "
+                    + JsonConvert.SerializeObject(
+                        result,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(result);
         }
 
@@ -88,17 +123,26 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpGet("bceid")]
         public async Task<IActionResult> GetCurrentBCeIDBusiness()
         {
-            _logger.LogInformation(LoggingEvents.HttpGet, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpGet,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
 
             // get the current user.
             string temp = _httpContextAccessor.HttpContext.Session.GetString("UserSettings");
             UserSettings userSettings = JsonConvert.DeserializeObject<UserSettings>(temp);
-            _logger.LogDebug(LoggingEvents.HttpGet, "UserSettings: " + JsonConvert.SerializeObject(userSettings));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "UserSettings: " + JsonConvert.SerializeObject(userSettings)
+            );
 
             // query the BCeID API to get the business record.
             var business = await _bceid.ProcessBusinessQuery(userSettings.SiteMinderGuid);
 
-             var cleanNumber = BusinessNumberSanitizer.SanitizeNumber(business?.businessNumber);
+            var cleanNumber = BusinessNumberSanitizer.SanitizeNumber(business?.businessNumber);
             if (cleanNumber != null)
             {
                 business.businessNumber = cleanNumber;
@@ -110,8 +154,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 return new NotFoundResult();
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "BCeID business record: " +
-                JsonConvert.SerializeObject(business, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "BCeID business record: "
+                    + JsonConvert.SerializeObject(
+                        business,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(business);
         }
 
@@ -123,7 +177,13 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpGet("{id}")]
         public IActionResult GetAccount(string id)
         {
-            _logger.LogInformation(LoggingEvents.HttpGet, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpGet,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
             _logger.LogDebug(LoggingEvents.HttpGet, "id: " + id);
 
             Boolean userAccessToAccount = false;
@@ -135,11 +195,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // verify the currently logged in user has access to this account
                 try
                 {
-                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(accountId, _httpContextAccessor, _dynamicsClient);
+                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(
+                        accountId,
+                        _httpContextAccessor,
+                        _dynamicsClient
+                    );
                 }
                 catch (OdataerrorException odee)
                 {
-                    _logger.LogError(LoggingEvents.Error, "Error while checking if current user has access to account.");
+                    _logger.LogError(
+                        LoggingEvents.Error,
+                        "Error while checking if current user has access to account."
+                    );
                     _logger.LogError("Request:");
                     _logger.LogError(odee.Request.Content);
                     _logger.LogError("Response:");
@@ -148,22 +215,31 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 if (!userAccessToAccount)
                 {
-                    _logger.LogWarning(LoggingEvents.NotFound, "Current user has NO access to account.");
+                    _logger.LogWarning(
+                        LoggingEvents.NotFound,
+                        "Current user has NO access to account."
+                    );
                     return new NotFoundResult();
                 }
-                List<string> expand = new List<string> { "bcgov_CurrentBusinessPhysicalAddress",
-                    "bcgov_CurrentBusinessMailingAddress", "bcgov_AdditionalContact", "primarycontactid" };
+                List<string> expand = new List<string>
+                {
+                    "bcgov_CurrentBusinessPhysicalAddress",
+                    "bcgov_CurrentBusinessMailingAddress",
+                    "bcgov_AdditionalContact",
+                    "primarycontactid"
+                };
                 try
                 {
-                    MicrosoftDynamicsCRMaccount account = _dynamicsClient.Accounts.GetByKey(accountId.ToString(), expand: expand);                    
+                    MicrosoftDynamicsCRMaccount account = _dynamicsClient.Accounts.GetByKey(
+                        accountId.ToString(),
+                        expand: expand
+                    );
                     result = account.ToViewModel();
                 }
                 catch (OdataerrorException)
                 {
                     return new NotFoundResult();
                 }
-
-
             }
             else
             {
@@ -171,8 +247,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 return BadRequest();
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "Account result: " +
-                JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "Account result: "
+                    + JsonConvert.SerializeObject(
+                        result,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(result);
         }
 
@@ -184,7 +270,13 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpGet("{id}/locations")]
         public IActionResult GetAccountLocations(string id)
         {
-            _logger.LogInformation(LoggingEvents.HttpGet, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpGet,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
             _logger.LogDebug(LoggingEvents.HttpGet, "id: " + id);
 
             Boolean userAccessToAccount = false;
@@ -196,11 +288,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // verify the currently logged in user has access to this account
                 try
                 {
-                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(accountId, _httpContextAccessor, _dynamicsClient);
+                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(
+                        accountId,
+                        _httpContextAccessor,
+                        _dynamicsClient
+                    );
                 }
                 catch (OdataerrorException odee)
                 {
-                    _logger.LogError(LoggingEvents.Error, "Error while checking if current user has access to account.");
+                    _logger.LogError(
+                        LoggingEvents.Error,
+                        "Error while checking if current user has access to account."
+                    );
                     _logger.LogError("Request:");
                     _logger.LogError(odee.Request.Content);
                     _logger.LogError("Response:");
@@ -209,7 +308,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 if (!userAccessToAccount)
                 {
-                    _logger.LogWarning(LoggingEvents.NotFound, "Current user has NO access to account.");
+                    _logger.LogWarning(
+                        LoggingEvents.NotFound,
+                        "Current user has NO access to account."
+                    );
                     return new NotFoundResult();
                 }
                 List<string> expand = new List<string> { "bcgov_LocationAddress" };
@@ -221,14 +323,13 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                     foreach (var item in query.Value)
                     {
                         result.Add(item.ToViewModel());
-                    }                    
+                    }
                 }
                 catch (OdataerrorException)
                 {
                     _logger.LogDebug("Error occured obtaining incident locations.");
                     return new NotFoundResult();
                 }
-
             }
             else
             {
@@ -236,8 +337,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 return BadRequest();
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "Account result: " +
-                JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "Account result: "
+                    + JsonConvert.SerializeObject(
+                        result,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(result);
         }
 
@@ -250,7 +361,13 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpGet("{id}/businesscontacts/{ownermanagercode}")]
         public IActionResult GetAccountBusinessContacts(string id, int ownermanagercode = 0)
         {
-            _logger.LogInformation(LoggingEvents.HttpGet, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpGet,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
             _logger.LogDebug(LoggingEvents.HttpGet, "id: " + id);
 
             Boolean userAccessToAccount = false;
@@ -262,11 +379,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // verify the currently logged in user has access to this account
                 try
                 {
-                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(accountId, _httpContextAccessor, _dynamicsClient);
+                    userAccessToAccount = UserDynamicsExtensions.CurrentUserHasAccessToAccount(
+                        accountId,
+                        _httpContextAccessor,
+                        _dynamicsClient
+                    );
                 }
                 catch (OdataerrorException odee)
                 {
-                    _logger.LogError(LoggingEvents.Error, "Error while checking if current user has access to account.");
+                    _logger.LogError(
+                        LoggingEvents.Error,
+                        "Error while checking if current user has access to account."
+                    );
                     _logger.LogError("Request:");
                     _logger.LogError(odee.Request.Content);
                     _logger.LogError("Response:");
@@ -275,18 +399,26 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 if (!userAccessToAccount)
                 {
-                    _logger.LogWarning(LoggingEvents.NotFound, "Current user has NO access to account.");
+                    _logger.LogWarning(
+                        LoggingEvents.NotFound,
+                        "Current user has NO access to account."
+                    );
                     return new NotFoundResult();
                 }
                 List<string> expand = new List<string> { "bcgov_Contact" };
                 try
                 {
                     string filter = $"_bcgov_businessprofile_value eq {id}";
-                    if (ownermanagercode > 0) 
+                    if (ownermanagercode > 0)
                     {
-                        filter = filter + $" and bcgov_registeredsellerownermanager eq {ownermanagercode}";
+                        filter =
+                            filter
+                            + $" and bcgov_registeredsellerownermanager eq {ownermanagercode}";
                     }
-                        var query = _dynamicsClient.Businesscontacts.Get(filter: filter, expand: expand); //, expand: expand
+                    var query = _dynamicsClient.Businesscontacts.Get(
+                        filter: filter,
+                        expand: expand
+                    ); //, expand: expand
 
                     foreach (var item in query.Value)
                     {
@@ -302,7 +434,6 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                     _logger.LogError(odee.Response.Content);
                     return new NotFoundResult();
                 }
-
             }
             else
             {
@@ -310,8 +441,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 return BadRequest();
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "Account Business Contacts result: " +
-                JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "Account Business Contacts result: "
+                    + JsonConvert.SerializeObject(
+                        result,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(result);
         }
 
@@ -319,7 +460,7 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         /// Update contacts
         /// </summary>
         /// <param name="item"></param>
-        private void UpdateContacts (ViewModels.Account item)
+        private void UpdateContacts(ViewModels.Account item)
         {
             // Primary Contact
             if (item.primaryContact.HasValue())
@@ -327,7 +468,7 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 var primaryContact = item.primaryContact.ToModel();
                 if (string.IsNullOrEmpty(item.primaryContact.id))
                 {
-                    // create an account.                        
+                    // create an account.
                     try
                     {
                         primaryContact = _dynamicsClient.Contacts.Create(primaryContact);
@@ -362,13 +503,13 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 }
             }
 
-            // Additional Contact 
+            // Additional Contact
             if (item.additionalContact.HasValue())
             {
                 var additionalContact = item.additionalContact.ToModel();
                 if (string.IsNullOrEmpty(item.additionalContact.id))
                 {
-                    // create an account.                        
+                    // create an account.
                     try
                     {
                         additionalContact = _dynamicsClient.Contacts.Create(additionalContact);
@@ -389,7 +530,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                     // update
                     try
                     {
-                        _dynamicsClient.Contacts.Update(item.additionalContact.id, additionalContact);
+                        _dynamicsClient.Contacts.Update(
+                            item.additionalContact.id,
+                            additionalContact
+                        );
                     }
                     catch (OdataerrorException odee)
                     {
@@ -411,25 +555,47 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         /// <param name="id"></param>
         /// <returns></returns>
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAccount([FromBody] ViewModels.Account item, string id)
+        public async Task<IActionResult> UpdateAccount(
+            [FromBody] ViewModels.Account item,
+            string id
+        )
         {
             bool isAdditionalContactDeleted = false;
             string additionalContactDeletedId = null;
 
             if (!string.IsNullOrEmpty(id) && Guid.TryParse(id, out Guid accountId))
             {
-                _logger.LogInformation(LoggingEvents.HttpPut, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
-                _logger.LogDebug(LoggingEvents.HttpPut, "Account parameter: " + JsonConvert.SerializeObject(item));
+                _logger.LogInformation(
+                    LoggingEvents.HttpPut,
+                    "Begin method "
+                        + this.GetType().Name
+                        + "."
+                        + MethodBase.GetCurrentMethod().ReflectedType.Name
+                );
+                _logger.LogDebug(
+                    LoggingEvents.HttpPut,
+                    "Account parameter: " + JsonConvert.SerializeObject(item)
+                );
                 _logger.LogDebug(LoggingEvents.HttpPut, "id parameter: " + id);
 
-         
-                if (!UserDynamicsExtensions.CurrentUserHasAccessToAccount(accountId, _httpContextAccessor, _dynamicsClient))
+                if (
+                    !UserDynamicsExtensions.CurrentUserHasAccessToAccount(
+                        accountId,
+                        _httpContextAccessor,
+                        _dynamicsClient
+                    )
+                )
                 {
-                    _logger.LogWarning(LoggingEvents.NotFound, "Current user has NO access to the account.");
+                    _logger.LogWarning(
+                        LoggingEvents.NotFound,
+                        "Current user has NO access to the account."
+                    );
                     return NotFound();
                 }
 
-                MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(accountId);
+                MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(
+                    accountId
+                );
                 if (account == null)
                 {
                     _logger.LogWarning(LoggingEvents.NotFound, "Account NOT found.");
@@ -438,7 +604,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 // handle the contacts.
 
-                if ( !string.IsNullOrEmpty(account._bcgovAdditionalcontactValue) && string.IsNullOrEmpty(item.additionalContact.id) )
+                if (
+                    !string.IsNullOrEmpty(account._bcgovAdditionalcontactValue)
+                    && string.IsNullOrEmpty(item.additionalContact.id)
+                )
                 {
                     isAdditionalContactDeleted = true;
                     additionalContactDeletedId = account._bcgovAdditionalcontactValue;
@@ -451,20 +620,33 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 // copy values over from the data provided
                 patchAccount.CopyValues(item);
-                if (item.primaryContact != null && item.primaryContact.id != null && 
-                    (account._primarycontactidValue == null || account._primarycontactidValue != item.primaryContact.id))
+                if (
+                    item.primaryContact != null
+                    && item.primaryContact.id != null
+                    && (
+                        account._primarycontactidValue == null
+                        || account._primarycontactidValue != item.primaryContact.id
+                    )
+                )
                 {
-                    patchAccount.PrimaryContactidODataBind = _dynamicsClient.GetEntityURI("contacts", item.primaryContact.id);
+                    patchAccount.PrimaryContactidODataBind = _dynamicsClient.GetEntityURI(
+                        "contacts",
+                        item.primaryContact.id
+                    );
                 }
                 else
                 {
-                    if (account._primarycontactidValue != null && ! item.primaryContact.HasValue())
+                    if (account._primarycontactidValue != null && !item.primaryContact.HasValue())
                     {
                         // remove the reference.
                         try
                         {
                             // pass null as recordId to remove the single value navigation property
-                            _dynamicsClient.Accounts.RemoveReference(accountId.ToString(), "primarycontactid", null);
+                            _dynamicsClient.Accounts.RemoveReference(
+                                accountId.ToString(),
+                                "primarycontactid",
+                                null
+                            );
                         }
                         catch (OdataerrorException odee)
                         {
@@ -478,7 +660,7 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                         // delete the contact.
                         try
-                        {                            
+                        {
                             _dynamicsClient.Contacts.Delete(account._primarycontactidValue);
                         }
                         catch (OdataerrorException odee)
@@ -490,25 +672,39 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                             _logger.LogError(odee.Response.Content);
                             throw new OdataerrorException("Error updating the account.");
                         }
-
                     }
                 }
 
-                
-                if (item.additionalContact != null && item.additionalContact.id != null &&
-                    (account._bcgovAdditionalcontactValue == null || account._bcgovAdditionalcontactValue != item.additionalContact.id))
+                if (
+                    item.additionalContact != null
+                    && item.additionalContact.id != null
+                    && (
+                        account._bcgovAdditionalcontactValue == null
+                        || account._bcgovAdditionalcontactValue != item.additionalContact.id
+                    )
+                )
                 {
-                    patchAccount.AdditionalContactODataBind = _dynamicsClient.GetEntityURI("contacts", item.additionalContact.id);
+                    patchAccount.AdditionalContactODataBind = _dynamicsClient.GetEntityURI(
+                        "contacts",
+                        item.additionalContact.id
+                    );
                 }
                 else
                 {
-                    if (account._bcgovAdditionalcontactValue != null && ! item.additionalContact.HasValue())
+                    if (
+                        account._bcgovAdditionalcontactValue != null
+                        && !item.additionalContact.HasValue()
+                    )
                     {
                         // remove the reference.
                         try
                         {
                             // pass null as recordId to remove the single value navigation property
-                            _dynamicsClient.Accounts.RemoveReference(accountId.ToString(), "bcgov_AdditionalContact", null);
+                            _dynamicsClient.Accounts.RemoveReference(
+                                accountId.ToString(),
+                                "bcgov_AdditionalContact",
+                                null
+                            );
                         }
                         catch (OdataerrorException odee)
                         {
@@ -528,7 +724,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                         }
                         catch (OdataerrorException odee)
                         {
-                            _logger.LogError(LoggingEvents.Error, "Error removing additional contact");
+                            _logger.LogError(
+                                LoggingEvents.Error,
+                                "Error removing additional contact"
+                            );
                             _logger.LogError("Request:");
                             _logger.LogError(odee.Request.Content);
                             _logger.LogError("Response:");
@@ -537,7 +736,6 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                         }
                     }
                 }
-
 
                 try
                 {
@@ -559,34 +757,62 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // set the business contact links.
                 if (item.primaryContact != null)
                 {
-                    _dynamicsClient.CreateBusinessContactLink(_logger, item.primaryContact.id, accountId.ToString(), null, (int?)ContactTypeCodes.Primary, item.primaryContact.title);
+                    _dynamicsClient.CreateBusinessContactLink(
+                        _logger,
+                        item.primaryContact.id,
+                        accountId.ToString(),
+                        null,
+                        (int?)ContactTypeCodes.Primary,
+                        item.primaryContact.title
+                    );
                 }
 
                 if (item.additionalContact != null && item.additionalContact.HasValue())
                 {
-                    _dynamicsClient.CreateBusinessContactLink(_logger, item.additionalContact.id, accountId.ToString(), null, (int?)ContactTypeCodes.Additional, item.additionalContact.title);
+                    _dynamicsClient.CreateBusinessContactLink(
+                        _logger,
+                        item.additionalContact.id,
+                        accountId.ToString(),
+                        null,
+                        (int?)ContactTypeCodes.Additional,
+                        item.additionalContact.title
+                    );
                 }
                 else
                 {
-                    if (isAdditionalContactDeleted) {
+                    if (isAdditionalContactDeleted)
+                    {
                         // find business contact record
-                        MicrosoftDynamicsCRMbcgovBusinesscontact businessContactLinked = _dynamicsClient.GetBusinessContactLink(_logger, additionalContactDeletedId, accountId.ToString());
+                        MicrosoftDynamicsCRMbcgovBusinesscontact businessContactLinked =
+                            _dynamicsClient.GetBusinessContactLink(
+                                _logger,
+                                additionalContactDeletedId,
+                                accountId.ToString()
+                            );
 
                         // set business contact record, enddate field with current date/time
                         try
                         {
-                            MicrosoftDynamicsCRMbcgovBusinesscontact businessContact = new MicrosoftDynamicsCRMbcgovBusinesscontact()
-                            {
-                                BcgovEnddate = DateTimeOffset.Now
-                            };
+                            MicrosoftDynamicsCRMbcgovBusinesscontact businessContact =
+                                new MicrosoftDynamicsCRMbcgovBusinesscontact()
+                                {
+                                    BcgovEnddate = DateTimeOffset.Now
+                                };
 
-                            _dynamicsClient.Businesscontacts.Update(businessContactLinked.BcgovBusinesscontactid, businessContact);
+                            _dynamicsClient.Businesscontacts.Update(
+                                businessContactLinked.BcgovBusinesscontactid,
+                                businessContact
+                            );
                         }
                         catch (OdataerrorException odee)
                         {
                             if (_logger != null)
                             {
-                                _logger.LogError(LoggingEvents.Error, "Error updating business contact id: " + businessContactLinked.BcgovBusinesscontactid);
+                                _logger.LogError(
+                                    LoggingEvents.Error,
+                                    "Error updating business contact id: "
+                                        + businessContactLinked.BcgovBusinesscontactid
+                                );
                                 _logger.LogError("Request:");
                                 _logger.LogError(odee.Request.Content);
                                 _logger.LogError("Response:");
@@ -594,15 +820,24 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                             }
                         }
                     }
-
                 }
 
                 // populate child items in the account.
                 patchAccount = _dynamicsClient.GetAccountByIdWithChildren(accountId);
 
                 var updatedAccount = patchAccount.ToViewModel();
-                _logger.LogDebug(LoggingEvents.HttpPut, "updatedAccount: " +
-                    JsonConvert.SerializeObject(updatedAccount, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+                _logger.LogDebug(
+                    LoggingEvents.HttpPut,
+                    "updatedAccount: "
+                        + JsonConvert.SerializeObject(
+                            updatedAccount,
+                            Formatting.Indented,
+                            new JsonSerializerSettings
+                            {
+                                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                            }
+                        )
+                );
 
                 return Json(updatedAccount);
             }
@@ -610,22 +845,32 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             {
                 return new BadRequestResult();
             }
-
         }
-
 
         [HttpPost()]
         public async Task<IActionResult> CreateAccount([FromBody] ViewModels.Account item)
         {
-            _logger.LogInformation(LoggingEvents.HttpPost, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
-            _logger.LogDebug(LoggingEvents.HttpPost, "Account parameters: " + JsonConvert.SerializeObject(item));
+            _logger.LogInformation(
+                LoggingEvents.HttpPost,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
+            _logger.LogDebug(
+                LoggingEvents.HttpPost,
+                "Account parameters: " + JsonConvert.SerializeObject(item)
+            );
 
             ViewModels.Account result = null;
 
             // get UserSettings from the session
             string temp = _httpContextAccessor.HttpContext.Session.GetString("UserSettings");
             UserSettings userSettings = JsonConvert.DeserializeObject<UserSettings>(temp);
-            _logger.LogDebug(LoggingEvents.HttpPost, "UserSettings: " + JsonConvert.SerializeObject(userSettings));
+            _logger.LogDebug(
+                LoggingEvents.HttpPost,
+                "UserSettings: " + JsonConvert.SerializeObject(userSettings)
+            );
 
             // get account Siteminder GUID
             string accountSiteminderGuid = userSettings.SiteMinderBusinessGuid;
@@ -644,14 +889,18 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             }
 
             // get BCeID record for the current user
-            Gov.Jag.PillPressRegistry.Interfaces.BCeIDBusiness bceidBusiness = await _bceid.ProcessBusinessQuery(userSettings.SiteMinderGuid);
+            Gov.Jag.PillPressRegistry.Interfaces.BCeIDBusiness bceidBusiness =
+                await _bceid.ProcessBusinessQuery(userSettings.SiteMinderGuid);
             var cleanNumber = BusinessNumberSanitizer.SanitizeNumber(bceidBusiness?.businessNumber);
             if (cleanNumber != null)
             {
                 bceidBusiness.businessNumber = cleanNumber;
             }
 
-            _logger.LogDebug(LoggingEvents.HttpGet, "BCeId business: " + JsonConvert.SerializeObject(bceidBusiness));
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "BCeId business: " + JsonConvert.SerializeObject(bceidBusiness)
+            );
 
             MicrosoftDynamicsCRMcontact userContact = null;
 
@@ -675,7 +924,9 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // create the user contact record.
                 userContact = new MicrosoftDynamicsCRMcontact();
                 // Adoxio_externalid is where we will store the guid from siteminder.
-                string sanitizedContactSiteminderId = GuidUtility.SanitizeGuidString(contactSiteminderGuid);
+                string sanitizedContactSiteminderId = GuidUtility.SanitizeGuidString(
+                    contactSiteminderGuid
+                );
                 userContact.Externaluseridentifier = sanitizedContactSiteminderId;
                 userContact.BcgovBceiduserguid = sanitizedContactSiteminderId;
 
@@ -684,8 +935,8 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 // ENABLE FOR BC SERVICE CARD SUPPORT
                 /*
-                if (! Guid.TryParse(userSettings.UserId, out tryParseOutGuid)) 
-                {                    
+                if (! Guid.TryParse(userSettings.UserId, out tryParseOutGuid))
+                {
                     userContact.Externaluseridentifier = userSettings.UserId;
                 }
                 */
@@ -723,11 +974,14 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                     _logger.LogError(odee.Response.Content);
                     throw new OdataerrorException("Error creating user contact.");
                 }
-
             }
             // this may be an existing account, as this service is used during the account confirmation process.
-            MicrosoftDynamicsCRMaccount account = await _dynamicsClient.GetAccountBySiteminderBusinessGuid(accountSiteminderGuid);
-            _logger.LogDebug(LoggingEvents.HttpGet, "Account by siteminder business guid: " + JsonConvert.SerializeObject(account));
+            MicrosoftDynamicsCRMaccount account =
+                await _dynamicsClient.GetAccountBySiteminderBusinessGuid(accountSiteminderGuid);
+            _logger.LogDebug(
+                LoggingEvents.HttpGet,
+                "Account by siteminder business guid: " + JsonConvert.SerializeObject(account)
+            );
 
             if (account == null)
             {
@@ -738,24 +992,35 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 // business type must be set only during creation, not in update (removed from copyValues() )
 
                 // by convention we strip out any dashes present in the guid, and force it to uppercase.
-                string sanitizedAccountSiteminderId = GuidUtility.SanitizeGuidString(accountSiteminderGuid);
+                string sanitizedAccountSiteminderId = GuidUtility.SanitizeGuidString(
+                    accountSiteminderGuid
+                );
 
                 account.BcgovBceid = sanitizedAccountSiteminderId;
 
                 UpdateContacts(item);
 
-                // For Pill Press the Primary Contact is not set to default to the first user.  
+                // For Pill Press the Primary Contact is not set to default to the first user.
                 if (item.primaryContact != null && !(string.IsNullOrEmpty(item.primaryContact.id)))
                 {
                     // add as a reference.
-                    account.PrimaryContactidODataBind = _dynamicsClient.GetEntityURI("contacts", item.primaryContact.id);
+                    account.PrimaryContactidODataBind = _dynamicsClient.GetEntityURI(
+                        "contacts",
+                        item.primaryContact.id
+                    );
                 }
 
-                // Additional Contact 
-                if (item.additionalContact != null && !(string.IsNullOrEmpty(item.additionalContact.id)))
+                // Additional Contact
+                if (
+                    item.additionalContact != null
+                    && !(string.IsNullOrEmpty(item.additionalContact.id))
+                )
                 {
                     // add as a reference.
-                    account.AdditionalContactODataBind = _dynamicsClient.GetEntityURI("contacts", item.additionalContact.id);
+                    account.AdditionalContactODataBind = _dynamicsClient.GetEntityURI(
+                        "contacts",
+                        item.additionalContact.id
+                    );
                 }
 
                 if (bceidBusiness != null)
@@ -816,16 +1081,20 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
                 accountString = JsonConvert.SerializeObject(accountString);
                 _logger.LogDebug("Account Entity after creation in dynamics --> " + accountString);
-
             }
 
-
             // always patch the userContact so it relates to the account.
-            _logger.LogDebug(LoggingEvents.Save, "Patching the userContact so it relates to the account.");
+            _logger.LogDebug(
+                LoggingEvents.Save,
+                "Patching the userContact so it relates to the account."
+            );
             // parent customer id relationship will be created using the method here:
             //https://msdn.microsoft.com/en-us/library/mt607875.aspx
             MicrosoftDynamicsCRMcontact patchUserContact = new MicrosoftDynamicsCRMcontact();
-            patchUserContact.ParentCustomerIdAccountODataBind = _dynamicsClient.GetEntityURI("accounts", account.Accountid);
+            patchUserContact.ParentCustomerIdAccountODataBind = _dynamicsClient.GetEntityURI(
+                "accounts",
+                account.Accountid
+            );
             try
             {
                 await _dynamicsClient.Contacts.UpdateAsync(userContact.Contactid, patchUserContact);
@@ -859,7 +1128,14 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 }
 
                 // create the bridge entity for the BCeID user
-                _dynamicsClient.CreateBusinessContactLink(_logger, userSettings.ContactId, userSettings.AccountId, null, (int?)ContactTypeCodes.BCeID, "BCeID");
+                _dynamicsClient.CreateBusinessContactLink(
+                    _logger,
+                    userSettings.ContactId,
+                    userSettings.AccountId,
+                    null,
+                    (int?)ContactTypeCodes.BCeID,
+                    "BCeID"
+                );
 
                 userSettings.IsNewUserRegistration = false;
 
@@ -867,7 +1143,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 _logger.LogDebug("userSettingsString --> " + userSettingsString);
 
                 // add the user to the session.
-                _httpContextAccessor.HttpContext.Session.SetString("UserSettings", userSettingsString);
+                _httpContextAccessor.HttpContext.Session.SetString(
+                    "UserSettings",
+                    userSettingsString
+                );
                 _logger.LogDebug("user added to session. ");
             }
             else
@@ -879,18 +1158,42 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             // create the business contact links.
             if (item.primaryContact != null)
             {
-                _dynamicsClient.CreateBusinessContactLink(_logger, item.primaryContact.id, account.Accountid, null, (int?)ContactTypeCodes.Primary, item.primaryContact.title);
+                _dynamicsClient.CreateBusinessContactLink(
+                    _logger,
+                    item.primaryContact.id,
+                    account.Accountid,
+                    null,
+                    (int?)ContactTypeCodes.Primary,
+                    item.primaryContact.title
+                );
             }
             if (item.additionalContact != null)
             {
-                _dynamicsClient.CreateBusinessContactLink(_logger, item.additionalContact.id, account.Accountid, null, (int?)ContactTypeCodes.Additional, item.additionalContact.title);
+                _dynamicsClient.CreateBusinessContactLink(
+                    _logger,
+                    item.additionalContact.id,
+                    account.Accountid,
+                    null,
+                    (int?)ContactTypeCodes.Additional,
+                    item.additionalContact.title
+                );
             }
 
             //account.Accountid = id;
             result = account.ToViewModel();
 
-            _logger.LogDebug(LoggingEvents.HttpPost, "result: " +
-                JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }));
+            _logger.LogDebug(
+                LoggingEvents.HttpPost,
+                "result: "
+                    + JsonConvert.SerializeObject(
+                        result,
+                        Formatting.Indented,
+                        new JsonSerializerSettings
+                        {
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        }
+                    )
+            );
             return Json(result);
         }
 
@@ -910,39 +1213,42 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
             name += " Account Files";
 
-
             // create a SharePointDocumentLocation link
             string folderName = "_" + account.Accountid;
 
-
             // Create the folder
-            bool folderExists = await _sharePointFileManager.FolderExists(SharePointFileManager.AccountDocumentListTitle, folderName);
+            bool folderExists = await _sharePointFileManager.FolderExists(
+                SharePointConstants.AccountFolderDisplayName,
+                folderName
+            );
             if (!folderExists)
             {
                 try
                 {
-                    await _sharePointFileManager.CreateFolder(SharePointFileManager.AccountDocumentListTitle, folderName);
+                    await _sharePointFileManager.CreateFolder(
+                        SharePointConstants.AccountFolderDisplayName,
+                        folderName
+                    );
                 }
                 catch (Exception e)
                 {
                     _logger.LogError("Error creating Sharepoint Folder");
-                    _logger.LogError($"List is: {SharePointFileManager.AccountDocumentListTitle}");
+                    _logger.LogError($"List is: {SharePointConstants.AccountFolderDisplayName}");
                     _logger.LogError($"FolderName is: {folderName}");
                     throw e;
                 }
-
             }
 
             // now create a document location to link them.
 
             // Create the SharePointDocumentLocation entity
-            MicrosoftDynamicsCRMsharepointdocumentlocation mdcsdl = new MicrosoftDynamicsCRMsharepointdocumentlocation()
-            {
-                Relativeurl = folderName,
-                Description = "Account Files",
-                Name = name
-            };
-
+            MicrosoftDynamicsCRMsharepointdocumentlocation mdcsdl =
+                new MicrosoftDynamicsCRMsharepointdocumentlocation()
+                {
+                    Relativeurl = folderName,
+                    Description = "Account Files",
+                    Name = name
+                };
 
             try
             {
@@ -966,27 +1272,38 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
             if (mdcsdl != null)
             {
-
                 // set the parent document library.
-                string parentDocumentLibraryReference = GetDocumentLocationReferenceByRelativeURL("account");
+                string parentDocumentLibraryReference = GetDocumentLocationReferenceByRelativeURL(
+                    "account"
+                );
 
                 string accountUri = _dynamicsClient.GetEntityURI("accounts", account.Accountid);
                 // add a regardingobjectid.
-                var patchSharePointDocumentLocationIncident = new MicrosoftDynamicsCRMsharepointdocumentlocation()
-                {
-                    RegardingobjectIdAccountODataBind = accountUri,
-                    ParentsiteorlocationSharepointdocumentlocationODataBind = _dynamicsClient.GetEntityURI("sharepointdocumentlocations", parentDocumentLibraryReference),
-                    Relativeurl = folderName,
-                    Description = "Account Files",
-                };
+                var patchSharePointDocumentLocationIncident =
+                    new MicrosoftDynamicsCRMsharepointdocumentlocation()
+                    {
+                        RegardingobjectIdAccountODataBind = accountUri,
+                        ParentsiteorlocationSharepointdocumentlocationODataBind =
+                            _dynamicsClient.GetEntityURI(
+                                "sharepointdocumentlocations",
+                                parentDocumentLibraryReference
+                            ),
+                        Relativeurl = folderName,
+                        Description = "Account Files",
+                    };
 
                 try
                 {
-                    _dynamicsClient.Sharepointdocumentlocations.Update(mdcsdl.Sharepointdocumentlocationid, patchSharePointDocumentLocationIncident);
+                    _dynamicsClient.Sharepointdocumentlocations.Update(
+                        mdcsdl.Sharepointdocumentlocationid,
+                        patchSharePointDocumentLocationIncident
+                    );
                 }
                 catch (OdataerrorException odee)
                 {
-                    _logger.LogError("Error adding reference SharepointDocumentLocation to account");
+                    _logger.LogError(
+                        "Error adding reference SharepointDocumentLocation to account"
+                    );
                     _logger.LogError("Request:");
                     _logger.LogError(odee.Request.Content);
                     _logger.LogError("Response:");
@@ -994,28 +1311,35 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                 }
                 catch (WebException we)
                 {
-                    _logger.LogError("Error adding reference SharepointDocumentLocation to account");
+                    _logger.LogError(
+                        "Error adding reference SharepointDocumentLocation to account"
+                    );
                     _logger.LogError("Response:");
                     _logger.LogError(we.Response.ToString());
                 }
                 catch (RestException e)
                 {
-                    _logger.LogError("Error adding reference SharepointDocumentLocation to account");
+                    _logger.LogError(
+                        "Error adding reference SharepointDocumentLocation to account"
+                    );
                     var error = ((Microsoft.Rest.HttpOperationException)e).Response.Content;
                     _logger.LogError(error);
                     mdcsdl = null;
                 }
 
+                string sharePointLocationData = _dynamicsClient.GetEntityURI(
+                    "sharepointdocumentlocations",
+                    mdcsdl.Sharepointdocumentlocationid
+                );
 
-                string sharePointLocationData = _dynamicsClient.GetEntityURI("sharepointdocumentlocations", mdcsdl.Sharepointdocumentlocationid);
-
-                OdataId oDataId = new OdataId()
-                {
-                    OdataIdProperty = sharePointLocationData
-                };
+                OdataId oDataId = new OdataId() { OdataIdProperty = sharePointLocationData };
                 try
                 {
-                    _dynamicsClient.Accounts.AddReference(account.Accountid, "Account_SharepointDocumentLocation", oDataId);
+                    _dynamicsClient.Accounts.AddReference(
+                        account.Accountid,
+                        "Account_SharepointDocumentLocation",
+                        oDataId
+                    );
                 }
                 catch (OdataerrorException odee)
                 {
@@ -1028,7 +1352,6 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             }
         }
 
-
         /// <summary>
         /// Delete a legal entity.  Using a HTTP Post to avoid Siteminder issues with DELETE
         /// </summary>
@@ -1037,41 +1360,66 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
         [HttpPost("{id}/delete")]
         public async Task<IActionResult> DeleteDynamicsAccount(string id)
         {
-            _logger.LogInformation(LoggingEvents.HttpPost, "Begin method " + this.GetType().Name + "." + MethodBase.GetCurrentMethod().ReflectedType.Name);
+            _logger.LogInformation(
+                LoggingEvents.HttpPost,
+                "Begin method "
+                    + this.GetType().Name
+                    + "."
+                    + MethodBase.GetCurrentMethod().ReflectedType.Name
+            );
 
             // verify the currently logged in user has access to this account
             Guid accountId = new Guid(id);
-            if (!UserDynamicsExtensions.CurrentUserHasAccessToAccount(accountId, _httpContextAccessor, _dynamicsClient))
+            if (
+                !UserDynamicsExtensions.CurrentUserHasAccessToAccount(
+                    accountId,
+                    _httpContextAccessor,
+                    _dynamicsClient
+                )
+            )
             {
-                _logger.LogWarning(LoggingEvents.NotFound, "Current user has NO access to the account.");
+                _logger.LogWarning(
+                    LoggingEvents.NotFound,
+                    "Current user has NO access to the account."
+                );
                 return new NotFoundResult();
             }
 
             // get the account
-            MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(accountId);
+            MicrosoftDynamicsCRMaccount account = _dynamicsClient.GetAccountByIdWithChildren(
+                accountId
+            );
             if (account == null)
             {
                 _logger.LogWarning(LoggingEvents.NotFound, "Account NOT found.");
                 return new NotFoundResult();
             }
-            
+
             try
             {
                 await _dynamicsClient.Accounts.DeleteAsync(accountId.ToString());
-                _logger.LogDebug(LoggingEvents.HttpDelete, "Account deleted: " + accountId.ToString());
+                _logger.LogDebug(
+                    LoggingEvents.HttpDelete,
+                    "Account deleted: " + accountId.ToString()
+                );
             }
             catch (OdataerrorException odee)
             {
-                _logger.LogError(LoggingEvents.Error, "Error deleting the account: " + accountId.ToString());
+                _logger.LogError(
+                    LoggingEvents.Error,
+                    "Error deleting the account: " + accountId.ToString()
+                );
                 _logger.LogError("Request:");
                 _logger.LogError(odee.Request.Content);
                 _logger.LogError("Response:");
                 _logger.LogError(odee.Response.Content);
-                throw new OdataerrorException("Error deleting the account: " + accountId.ToString());
+                throw new OdataerrorException(
+                    "Error deleting the account: " + accountId.ToString()
+                );
             }
 
             _logger.LogDebug(LoggingEvents.HttpDelete, "No content returned.");
-            return NoContent(); // 204 
+            return NoContent(); // 204
         }
 
         /// <summary>
@@ -1084,20 +1432,26 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             string result = null;
             string sanitized = relativeUrl.Replace("'", "''");
             // first see if one exists.
-            var locations = _dynamicsClient.Sharepointdocumentlocations.Get(filter: "relativeurl eq '" + sanitized + "'");
+            var locations = _dynamicsClient.Sharepointdocumentlocations.Get(
+                filter: "relativeurl eq '" + sanitized + "'"
+            );
 
             var location = locations.Value.FirstOrDefault();
 
             if (location == null)
             {
                 var parentSite = _dynamicsClient.Sharepointsites.Get().Value.FirstOrDefault();
-                var parentSiteRef = _dynamicsClient.GetEntityURI("sharepointsites", parentSite.Sharepointsiteid);
-                MicrosoftDynamicsCRMsharepointdocumentlocation newRecord = new MicrosoftDynamicsCRMsharepointdocumentlocation()
-                {
-                    Relativeurl = relativeUrl,
-                    Name = "Account",
-                    ParentsiteorlocationSharepointdocumentlocationODataBind = parentSiteRef
-                };
+                var parentSiteRef = _dynamicsClient.GetEntityURI(
+                    "sharepointsites",
+                    parentSite.Sharepointsiteid
+                );
+                MicrosoftDynamicsCRMsharepointdocumentlocation newRecord =
+                    new MicrosoftDynamicsCRMsharepointdocumentlocation()
+                    {
+                        Relativeurl = relativeUrl,
+                        Name = "Account",
+                        ParentsiteorlocationSharepointdocumentlocationODataBind = parentSiteRef
+                    };
                 // create a new document location.
                 try
                 {
@@ -1120,7 +1474,5 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
             return result;
         }
-
     }
 }
-
