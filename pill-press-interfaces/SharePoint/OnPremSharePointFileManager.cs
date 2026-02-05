@@ -39,14 +39,43 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
         {
             // create the HttpClient that is used for our direct REST calls.
             _CookieContainer = new CookieContainer();
-            _HttpClientHandler = new HttpClientHandler()
-            {
-                UseCookies = true,
-                AllowAutoRedirect = false,
-                CookieContainer = _CookieContainer
-            };
-            _Client = new HttpClient(_HttpClientHandler);
 
+            string bypassStsCertValidation = Configuration["BYPASS_STS_CERT_VALIDATION"]; // Bypass STS certificate validation (true/false)
+
+            if (
+                !string.IsNullOrEmpty(bypassStsCertValidation)
+                && bypassStsCertValidation.ToLower() == "true"
+            )
+            {
+                _HttpClientHandler = new HttpClientHandler()
+                {
+                    UseCookies = true,
+                    AllowAutoRedirect = false,
+                    CookieContainer = _CookieContainer,
+                    ClientCertificateOptions = ClientCertificateOption.Manual,
+                    ServerCertificateCustomValidationCallback = (
+                        httpRequestMessage,
+                        cert,
+                        cetChain,
+                        policyErrors
+                    ) =>
+                    {
+                        // Ignore all certificate validation errors.
+                        return true;
+                    }
+                };
+            }
+            else
+            {
+                _HttpClientHandler = new HttpClientHandler()
+                {
+                    UseCookies = true,
+                    AllowAutoRedirect = false,
+                    CookieContainer = _CookieContainer
+                };
+            }
+
+            _Client = new HttpClient(_HttpClientHandler);
             _Client.DefaultRequestHeaders.Add("Accept", "application/json;odata=verbose");
 
             // SharePoint configuration settings.
@@ -116,7 +145,8 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
                         sharePointRelyingPartyIdentifier,
                         sharePointUsername,
                         sharePointPassword,
-                        sharePointStsTokenUri
+                        sharePointStsTokenUri,
+                        _Client
                     )
                     .GetAwaiter()
                     .GetResult();
@@ -280,7 +310,8 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             foreach (JToken responseResult in responseResults)
             {
                 // JToken.ToObject is a helper method that uses JsonSerializer internally
-                SharePointFileDetailsList searchResult = responseResult.ToObject<SharePointFileDetailsList>();
+                SharePointFileDetailsList searchResult =
+                    responseResult.ToObject<SharePointFileDetailsList>();
                 //filter by parameter documentType
                 int fileDoctypeEnd = searchResult.Name.IndexOf("__");
                 if (fileDoctypeEnd > -1)

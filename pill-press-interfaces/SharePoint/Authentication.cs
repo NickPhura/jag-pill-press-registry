@@ -246,7 +246,8 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             string spSiteUrl,
             string username,
             string password,
-            string stsUrl
+            string stsUrl,
+            HttpClient client
         )
         {
             // Makes a request that conforms with the WS-Trust standard to
@@ -264,7 +265,6 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
 
             if (saml11RT != null)
             {
-                var client = new HttpClient();
                 var content = new StringContent(
                     saml11RT,
                     System.Text.Encoding.UTF8,
