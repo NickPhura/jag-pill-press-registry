@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --source-map --base-href /pillpressregistry/",
+    "start": "ng serve --source-map --host 0.0.0.0",
     "build": "ng build --extract-css --base-href /pillpressregistry/     --deploy-url /pillpressregistry/",
     "builduat": "ng build --extract-css --base-href /uat/pillpressregistry/ --deploy-url /uat/pillpressregistry/",
     "buildprod": "ng build --extract-css --base-href /pillpressregistry/     --deploy-url /pillpressregistry/",
