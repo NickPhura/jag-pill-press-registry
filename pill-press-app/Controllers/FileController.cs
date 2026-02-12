@@ -479,10 +479,10 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
             switch (entityName.ToLower())
             {
                 case "incident":
-                    listTitle = SharePointConstants.ApplicationFolderDisplayName;
+                    listTitle = SharePointConstants.ApplicationFolderInternalName;
                     break;
                 case "contact":
-                    listTitle = SharePointConstants.ContactFolderDisplayName;
+                    listTitle = SharePointConstants.ContactFolderInternalName;
                     break;
                 default:
                     break;
