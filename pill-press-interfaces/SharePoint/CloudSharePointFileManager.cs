@@ -424,27 +424,40 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
                 throw new Exception($"Document library '{listTitle}' not found");
             }
 
-            // Use Drive API to create folder (consistent with file upload/delete operations)
-            string encodedFolderName = Uri.EscapeDataString(folderName);
+            // Use Drive API to create folder by posting to the root's children collection
             string requestUrl =
-                $"{GraphApiEndpoint}sites/{SiteId}/lists/{listId}/drive/root:/{encodedFolderName}";
+                $"{GraphApiEndpoint}sites/{SiteId}/lists/{listId}/drive/root/children";
 
             _logger.LogDebug("CreateFolder - Request URL: {RequestUrl}", requestUrl);
+            _logger.LogDebug("CreateFolder - Folder name: {FolderName}", folderName);
 
-            var requestBody = new { folder = new { }, name = folderName };
+            // Build request body using JObject to properly include @microsoft.graph.conflictBehavior
+            var requestBody = new JObject
+            {
+                ["name"] = folderName,
+                ["folder"] = new JObject(),
+                ["@microsoft.graph.conflictBehavior"] = "rename"
+            };
+
             var content = new StringContent(
-                JsonConvert.SerializeObject(requestBody),
+                requestBody.ToString(),
                 Encoding.UTF8,
                 "application/json"
             );
 
-            // PATCH is used to create/update in Drive API
-            var request = new HttpRequestMessage(new HttpMethod("PATCH"), requestUrl)
-            {
-                Content = content
-            };
+            // POST is the correct method to create a new folder in Drive API
+            var response = await _Client.PostAsync(requestUrl, content);
 
-            var response = await _Client.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                _logger.LogError(
+                    "CreateFolder - Failed to create folder. Status: {StatusCode}, Error: {Error}",
+                    response.StatusCode,
+                    errorContent
+                );
+            }
+
             response.EnsureSuccessStatusCode();
         }
 

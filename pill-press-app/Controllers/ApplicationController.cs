@@ -840,9 +840,14 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
 
             if (!string.IsNullOrEmpty(_sharePointFileManager.WebName))
             {
-                serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName;
+                serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName + "/";
+                serverRelativeUrl += _sharePointFileManager.GetServerRelativeURL(SharePointConstants.ApplicationFolderDisplayName, application.GetSharePointFolderName());
             }
-            serverRelativeUrl += _sharePointFileManager.GetServerRelativeURL(SharePointConstants.ApplicationFolderDisplayName, application.GetSharePointFolderName());
+            else
+            {
+                // For cloud SharePoint, GetServerRelativeURL already includes the leading /
+                serverRelativeUrl = _sharePointFileManager.GetServerRelativeURL(SharePointConstants.ApplicationFolderDisplayName, application.GetSharePointFolderName());
+            }
 
             string folderName = application.GetSharePointFolderName();
 

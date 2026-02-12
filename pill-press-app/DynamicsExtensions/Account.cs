@@ -173,15 +173,20 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
 
                         if (!string.IsNullOrEmpty(_sharePointFileManager.WebName))
                         {
-                            serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName;
-                        }
-
-                        serverRelativeUrl +=
-                            "/"
-                            + _sharePointFileManager.GetServerRelativeURL(
+                            serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName + "/";
+                            serverRelativeUrl += _sharePointFileManager.GetServerRelativeURL(
                                 SharePointConstants.AccountFolderDisplayName,
                                 location.Relativeurl
                             );
+                        }
+                        else
+                        {
+                            // For cloud SharePoint, GetServerRelativeURL already includes the leading /
+                            serverRelativeUrl = _sharePointFileManager.GetServerRelativeURL(
+                                SharePointConstants.AccountFolderDisplayName,
+                                location.Relativeurl
+                            );
+                        }
 
                         result = serverRelativeUrl;
                     }
@@ -190,20 +195,25 @@ namespace Gov.Jag.PillPressRegistry.Interfaces
             if (string.IsNullOrEmpty(result))
             {
                 string serverRelativeUrl = "";
-
-                if (!string.IsNullOrEmpty(_sharePointFileManager.WebName))
-                {
-                    serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName;
-                }
                 string accountIdCleaned = account.Accountid.ToString().ToUpper().Replace("-", "");
                 string folderName = $"_{accountIdCleaned}";
 
-                serverRelativeUrl +=
-                    "/"
-                    + _sharePointFileManager.GetServerRelativeURL(
+                if (!string.IsNullOrEmpty(_sharePointFileManager.WebName))
+                {
+                    serverRelativeUrl += "/sites/" + _sharePointFileManager.WebName + "/";
+                    serverRelativeUrl += _sharePointFileManager.GetServerRelativeURL(
                         SharePointConstants.AccountFolderDisplayName,
                         folderName
                     );
+                }
+                else
+                {
+                    // For cloud SharePoint, GetServerRelativeURL already includes the leading /
+                    serverRelativeUrl = _sharePointFileManager.GetServerRelativeURL(
+                        SharePointConstants.AccountFolderDisplayName,
+                        folderName
+                    );
+                }
 
                 result = serverRelativeUrl;
             }

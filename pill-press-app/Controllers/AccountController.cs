@@ -1327,27 +1327,31 @@ namespace Gov.Jag.PillPressRegistry.Public.Controllers
                     mdcsdl = null;
                 }
 
-                string sharePointLocationData = _dynamicsClient.GetEntityURI(
-                    "sharepointdocumentlocations",
-                    mdcsdl.Sharepointdocumentlocationid
-                );
-
-                OdataId oDataId = new OdataId() { OdataIdProperty = sharePointLocationData };
-                try
+                // Only proceed if the SharePoint document location was created/updated successfully
+                if (mdcsdl != null)
                 {
-                    _dynamicsClient.Accounts.AddReference(
-                        account.Accountid,
-                        "Account_SharepointDocumentLocation",
-                        oDataId
+                    string sharePointLocationData = _dynamicsClient.GetEntityURI(
+                        "sharepointdocumentlocations",
+                        mdcsdl.Sharepointdocumentlocationid
                     );
-                }
-                catch (OdataerrorException odee)
-                {
-                    _logger.LogError("Error adding reference to SharepointDocumentLocation");
-                    _logger.LogError("Request:");
-                    _logger.LogError(odee.Request.Content);
-                    _logger.LogError("Response:");
-                    _logger.LogError(odee.Response.Content);
+
+                    OdataId oDataId = new OdataId() { OdataIdProperty = sharePointLocationData };
+                    try
+                    {
+                        _dynamicsClient.Accounts.AddReference(
+                            account.Accountid,
+                            "Account_SharepointDocumentLocation",
+                            oDataId
+                        );
+                    }
+                    catch (OdataerrorException odee)
+                    {
+                        _logger.LogError("Error adding reference to SharepointDocumentLocation");
+                        _logger.LogError("Request:");
+                        _logger.LogError(odee.Request.Content);
+                        _logger.LogError("Response:");
+                        _logger.LogError(odee.Response.Content);
+                    }
                 }
             }
         }
